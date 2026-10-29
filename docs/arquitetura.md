@@ -4,8 +4,10 @@
 flowchart LR
     SITE[Site SEMIL-SP<br/>painel das travessias] -->|varredura + JSON| COL[Coletor]
     COL -->|Transação: leitura + outbox| DB[(PostgreSQL)]
-    A[Android A] -->|HTTP| API1[API réplica 1 :4310]
-    B[Android B] -->|HTTP| API2[API réplica 2 :4311]
+    A[Android A] -->|HTTPS + WebSocket| NG[Nginx]
+    B[Android B] -->|HTTPS + WebSocket| NG
+    NG --> API1[API réplica 1]
+    NG --> API2[API réplica 2]
     API1 -->|Transação: relato + outbox| DB
     API2 -->|Transação: relato + outbox| DB
     DB --> W[Worker de eventos]
@@ -14,11 +16,11 @@ flowchart LR
     MQ --> Q2[Fila da réplica 2]
     Q1 --> API1
     Q2 --> API2
-    API1 -->|WebSocket| A
-    API2 -->|WebSocket| B
+    API1 -->|WebSocket via Nginx| A
+    API2 -->|WebSocket via Nginx| B
 ```
 
-São seis processos independentes no Compose: banco, broker, duas réplicas da API, worker e coletor. Cada um pode cair e voltar sem perder dados, porque o PostgreSQL é a fonte de verdade.
+O Nginx é a porta de entrada: recebe os celulares e os reparte entre as duas réplicas da API. Atrás dele rodam seis processos independentes: banco, broker, duas réplicas da API, worker e coletor. Cada um pode cair e voltar sem perder dados, porque o PostgreSQL é a fonte de verdade. O mesmo conjunto roda na VPS e no computador de quem baixa o projeto (`compose.yaml` e `nginx.conf`).
 
 ## Coletor (scraper)
 
@@ -33,8 +35,6 @@ A varredura acontece só na primeira coleta ou quando a leitura falha. Se a pág
 
 Cada leitura é gravada em `crossing_snapshots`, o que forma o histórico. Um evento `crossing.updated` vai para a outbox só quando a espera, as embarcações, o tempo ou o aviso mudam. Uma falha incrementa `collector_state.failures`. A primeira falha e a recuperação geram eventos `source.status`. Leituras com mais de 10 minutos são entregues com `stale: true` e o app as mostra como "dado atrasado".
 
-O modo `COLLECTOR_MODE=simulado` gera esperas com picos de manhã e no fim da tarde, para demonstração sem internet. Essas leituras são marcadas como `simulado` no banco e no app.
-
 ## Eventos e consistência
 
 A API não depende de uma notificação para salvar dados. A outbox (`outbox_events`) guarda o evento na mesma transação do relato ou da leitura, sem janela entre salvar e enfileirar. O worker usa `FOR UPDATE SKIP LOCKED` e confirmação do broker. Em falha, a transação é revertida e os eventos continuam pendentes. Pode haver reentrega, por isso o cliente sempre busca o estado atual em vez de aplicar o evento diretamente.
@@ -45,7 +45,7 @@ Cada réplica usa uma fila exclusiva ligada ao exchange fanout, de modo que **to
 
 - `POST /v1/participants`: participação anônima por instalação; retorna o token uma única vez.
 - `GET /v1/crossings`: as três travessias, com terminais, última leitura (`status`), mediana da comunidade por lado (`community.A`/`community.B`), relatos ativos e estado da fonte (`source`).
-- `GET /v1/crossings/:id/history?days=7`: média por hora do dia, série das últimas 6 horas, melhor hora de cada lado (entre 6h e 22h) e indicação de dados simulados.
+- `GET /v1/crossings/:id/history?days=7`: média por hora do dia, série das últimas 6 horas, melhor hora de cada lado (entre 6h e 22h). Leituras com a travessia parada ficam fora das médias.
 - `GET /v1/reports`: relatos recentes; filtros `crossing`, `category`, `status`, `sinceMinutes` (padrão 180) e `limit` (até 500).
 - `POST /v1/reports`: Bearer token e `Idempotency-Key` UUID. Campos: `crossingId`, `side` (A/B), `category` (`fila`, `embarque_lento`, `interrompida`, `clima`, `acidente`), `waitMinutes` opcional (0–600), `description` opcional (até 400) e coordenadas.
 - `PATCH /v1/reports/:id/resolve`: só o autor encerra; repetir não duplica eventos.
@@ -57,13 +57,13 @@ A chave de idempotência é única por participante. Reutilizá-la com outro con
 
 ## Aplicativo Android
 
-Kotlin nativo, sem framework de UI adicional. As telas são Travessias, Mapa, Relatos e Bastidores. A última apresenta os sinais de vida, o canal do celular e os eventos registrados pelo backend. O APK abre conectado à VPS; o modo de demonstração e o servidor local são opções explícitas nos Ajustes. Os avisos de espera são guardados no aparelho, verificados a cada atualização recebida e disparam uma notificação uma única vez.
+Kotlin nativo, sem framework de UI adicional. As telas são Travessias, Mapa, Relatos e Bastidores. A última desenha os processos do sistema com ícones, mostra os sinais de vida, a réplica a que o celular está ligado e o caminho do último evento, com os tempos medidos. O APK abre conectado à VPS; em Ajustes → Outro servidor é possível ligá-lo ao sistema rodando no próprio computador. Além do canal ao vivo, o app busca os dados de novo a cada 30 segundos, para não perder relatos se o WebSocket cair.
 
 Os sinais de vida são gravados a cada cinco segundos. O registro da publicação usa o relógio do PostgreSQL antes do envio, e a pendência é encerrada somente após confirmação do broker. Os tempos representam os intervalos registrados entre criação, publicação e entrega às réplicas; o último trecho até a renderização no celular não tem confirmação individual instrumentada.
 
 ## Limites
 
-O serviço oficial não é uma API aberta documentada e pode mudar ou bloquear consultas. O coletor registra a falha, mantém o último dado e o modo simulado permite a apresentação. As coordenadas dos terminais são aproximadas. Não há moderação de relatos nem recuperação da participação após desinstalar. Os avisos dependem do aplicativo estar aberto ou em segundo plano recente, porque não há serviço de push.
+O serviço oficial não é uma API aberta documentada e pode mudar ou bloquear consultas. Nesse caso o coletor registra a falha e o app continua mostrando o último dado, marcado como atrasado. Não há moderação de relatos nem recuperação da participação após desinstalar. A VPS é um único servidor físico: as réplicas protegem contra a queda de um processo, não da máquina.
 
 ## Referências das tecnologias
 
@@ -76,4 +76,3 @@ O serviço oficial não é uma API aberta documentada e pode mudar ou bloquear c
 - [RabbitMQ — confirmações](https://www.rabbitmq.com/docs/confirms)
 - [Travessias Litorâneas — SEMIL-SP](https://semil.sp.gov.br/travessias/)
 
-Estas referências técnicas não constituem a bibliografia acadêmica completa. O relatório da APS deve acrescentar os fundamentos, as fontes efetivamente consultadas pelo grupo e a análise interdisciplinar.

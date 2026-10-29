@@ -1,6 +1,6 @@
 # ViaAgora — Travessias da Baixada Santista
 
-Projeto educacional da APS de Desenvolvimento de Sistemas Distribuídos (UNIP). Um aplicativo Android mostra **em tempo real o tempo de espera das balsas** Santos ⇄ Guarujá, Santos ⇄ Vicente de Carvalho e Bertioga ⇄ Guarujá, apoiado por um servidor distribuído.
+Projeto educacional da APS de Desenvolvimento de Sistemas Distribuídos (UNIP). Um aplicativo Android mostra **em tempo real o tempo de espera das balsas** entre Santos e Guarujá, entre Santos e Vicente de Carvalho e entre Bertioga e Guarujá, apoiado por um servidor distribuído.
 
 - Site com a explicação da arquitetura: https://sedda.com.br
 - APK: https://sedda.com.br/downloads/ViaAgora.apk (abre conectado ao servidor oficial)
@@ -70,8 +70,6 @@ Aplicativo: requer JDK 17 e SDK Android 35. No Windows, `.\scripts\build-apk.ps1
 - `site/`: site do projeto (HTML, CSS e JavaScript).
 - `compose.yaml` e `nginx.conf`: ambiente local.
 - `compose.test.yaml`: ambiente dos testes automatizados.
-- `docs/`: proposta, arquitetura, guias e o trabalho escrito da APS.
-- `Doc/`: enunciado da APS.
 
 ## Atribuições
 

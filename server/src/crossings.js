@@ -1,8 +1,10 @@
+// Travessias acompanhadas e leitura do painel oficial da SEMIL-SP (web scraping).
 import { z } from 'zod';
 
 // Travessias da Baixada Santista acompanhadas pelo ViaAgora. Terminais e rotas tirados das linhas de balsa do
 // OpenStreetMap (vias 48452393, 496378138 e 466892175); a rota vai do ponto A ao ponto B.
-export const crossings=[
+// Os nomes dos campos (name, pointA, route...) são enviados ao aplicativo e fazem parte da API.
+export const travessias=[
   {id:'santos-guaruja',name:'Santos ⇄ Guarujá',kind:'veiculos',
     pointA:{name:'Santos',address:'Praça Gago Coutinho, 525 - Ponta da Praia',latitude:-23.98692,longitude:-46.29379},
     pointB:{name:'Guarujá',address:'Av. Ademar de Barros, 3300',latitude:-23.98832,longitude:-46.28944},
@@ -17,47 +19,52 @@ export const crossings=[
     pointB:{name:'Guarujá',address:'Estrada Guarujá-Bertioga, km 29',latitude:-23.86028,longitude:-46.14337},
     route:[[-23.85639,-46.14465],[-23.86028,-46.14337]]},
 ];
-export const crossingIds=crossings.map(c=>c.id);
-export const crossingById=id=>crossings.find(c=>c.id===id);
+export const idsTravessias=travessias.map(t=>t.id);
+export const travessiaPorId=id=>travessias.find(t=>t.id===id);
 
-export const SITE_URL='https://semil.sp.gov.br/travessias/';
-export const DEFAULT_FEED_URL='https://drivetis-travessias.brazilsouth.cloudapp.azure.com:1444/TravessiaService/PT';
-const headers={'User-Agent':'Mozilla/5.0 (compatible; ViaAgora-APS/1.0; projeto academico)','Accept':'text/html,application/xhtml+xml,application/json','Accept-Language':'pt-BR,pt;q=0.9'};
+export const ENDERECO_SITE='https://semil.sp.gov.br/travessias/';
+// Endereço conhecido do serviço do painel, usado se a varredura do site falhar.
+export const ENDERECO_SERVICO_PADRAO='https://drivetis-travessias.brazilsouth.cloudapp.azure.com:1444/TravessiaService/PT';
+const cabecalhos={'User-Agent':'Mozilla/5.0 (compatible; ViaAgora-APS/1.0; projeto academico)','Accept':'text/html,application/xhtml+xml,application/json','Accept-Language':'pt-BR,pt;q=0.9'};
 
-export const slug=value=>value.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+// "Santos Guarujá" -> "santos-guaruja": sem acentos, minúsculo e com hífens.
+export const gerarSlug=valor=>valor.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 // Aviso fixo do 0800 que aparece em todas as travessias; não informa nada sobre a situação atual.
-const genericNotice=/^(o\s+)?0800[-\d\s]*.{0,40}24 horas/i;
-const stripHtml=value=>(value??'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+const avisoGenerico=/^(o\s+)?0800[-\d\s]*.{0,40}24 horas/i;
+const removerHtml=valor=>(valor??'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
 
 // Página da SEMIL -> <script ...travessia-service...> -> variável getInfo (ignora linhas comentadas).
-export function findServiceScript(html,base=SITE_URL){
-  const src=html.match(/<script[^>]+src="([^"]*travessia-service[^"]*)"/i)?.[1];
-  return src?new URL(src,base).toString():null;
+export function encontrarScriptDoPainel(html,base=ENDERECO_SITE){
+  const endereco=html.match(/<script[^>]+src="([^"]*travessia-service[^"]*)"/i)?.[1];
+  return endereco?new URL(endereco,base).toString():null;
 }
-export function findFeedBase(script){
-  for(const line of script.split(/\r?\n/)){
-    if(line.trim().startsWith('//'))continue;
-    const url=line.match(/getInfo\s*=\s*["'](https?:\/\/[^"']+)["']/)?.[1];
-    if(url)return url.endsWith('/')?url:url+'/';
+export function encontrarEnderecoServico(script){
+  for(const linha of script.split(/\r?\n/)){
+    if(linha.trim().startsWith('//'))continue;
+    const endereco=linha.match(/getInfo\s*=\s*["'](https?:\/\/[^"']+)["']/)?.[1];
+    if(endereco)return endereco.endsWith('/')?endereco:endereco+'/';
   }
   return null;
 }
 
-async function download(fetchImpl,url,type){
-  const response=await fetchImpl(url,{headers,signal:AbortSignal.timeout(15000)});
-  if(!response.ok)throw new Error(`Fonte respondeu ${response.status} em ${new URL(url).host}`);
-  return type==='json'?response.json():response.text();
+// Baixa uma página ou um JSON, desistindo depois de 15 segundos.
+async function baixar(buscarImpl,endereco,tipo){
+  const resposta=await buscarImpl(endereco,{headers:cabecalhos,signal:AbortSignal.timeout(15000)});
+  if(!resposta.ok)throw new Error(`Fonte respondeu ${resposta.status} em ${new URL(endereco).host}`);
+  return tipo==='json'?resposta.json():resposta.text();
 }
-export async function discoverFeedUrl(fetchImpl=fetch){
-  const html=await download(fetchImpl,SITE_URL,'text');
-  const script=findServiceScript(html);
+// Refaz o caminho do navegador: página -> script do painel -> endereço do serviço de dados.
+export async function descobrirEnderecoServico(buscarImpl=fetch){
+  const html=await baixar(buscarImpl,ENDERECO_SITE,'text');
+  const script=encontrarScriptDoPainel(html);
   if(!script)throw new Error('Script do painel não encontrado na página.');
-  const base=findFeedBase(await download(fetchImpl,script,'text'));
+  const base=encontrarEnderecoServico(await baixar(buscarImpl,script,'text'));
   if(!base)throw new Error('Endereço do serviço não encontrado no script.');
   return base+'PT';
 }
 
-const feedItem=z.object({
+// Formato de cada item do JSON do painel oficial (validado com Zod; itens fora do formato são ignorados).
+const itemPainel=z.object({
   TravessiaPontoA:z.string(),TravessiaPontoB:z.string(),
   EsperaPontoA:z.number().int().min(0).max(1440),EsperaPontoB:z.number().int().min(0).max(1440),
   NumEmbarca:z.number().int().min(0).max(50),EmbarcaAtivo:z.boolean(),
@@ -65,45 +72,45 @@ const feedItem=z.object({
   AvisoUsuarioApp:z.string().nullish(),AvisoUsuario:z.string().nullish(),DataConsulta:z.string().nullish(),
 }).passthrough();
 
-// "10/28/2026 9:16:41 PM" no horário de Brasília (UTC-3, sem horário de verão).
-export function parseSourceTime(value){
-  const m=value?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/);
+// "10/28/2026 9:16:41 PM" no horário de Brasília (UTC-3, sem horário de verão) -> data ISO em UTC.
+export function lerHorarioFonte(valor){
+  const m=valor?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) (AM|PM)$/);
   if(!m)return null;
-  let hour=Number(m[4])%12;if(m[7]==='PM')hour+=12;
-  const date=new Date(Date.UTC(Number(m[3]),Number(m[1])-1,Number(m[2]),hour+3,Number(m[5]),Number(m[6])));
-  return Number.isNaN(date.getTime())?null:date.toISOString();
+  let hora=Number(m[4])%12;if(m[7]==='PM')hora+=12;
+  const data=new Date(Date.UTC(Number(m[3]),Number(m[1])-1,Number(m[2]),hora+3,Number(m[5]),Number(m[6])));
+  return Number.isNaN(data.getTime())?null:data.toISOString();
 }
 
-const notice=value=>{const text=stripHtml(value).slice(0,400);return text&&!genericNotice.test(text)?text:null;};
+const limparAviso=valor=>{const texto=removerHtml(valor).slice(0,400);return texto&&!avisoGenerico.test(texto)?texto:null;};
 // O painel nem sempre zera as embarcações numa paralisação; às vezes só avisa no texto. Restrições parciais
 // (ex.: só veículos pesados) e avisos de retomada não contam como travessia parada.
-const stopWords=/\b(interrompid[ao]s?|paralisad[ao]s?|paralisacao|suspens[ao]s?|interditad[ao]s?|fechad[ao]s?|sem operacao)\b/;
-const resumed=/(retomad|normaliz|restabelecid|liberad|reabert|voltou a operar)/;
-const partial=/(pesad|caminh|carga)/;
+const palavrasDeParada=/\b(interrompid[ao]s?|paralisad[ao]s?|paralisacao|suspens[ao]s?|interditad[ao]s?|fechad[ao]s?|sem operacao)\b/;
+const retomada=/(retomad|normaliz|restabelecid|liberad|reabert|voltou a operar)/;
+const parcial=/(pesad|caminh|carga)/;
 // Frases que falam da travessia inteira valem mesmo se o aviso também citar veículos pesados.
-const wholeStop=/(travessia (esta |foi )?(interrompid|paralisad|suspens|fechad)|operacao (esta |foi )?(suspens|interrompid|paralisad)|sem operacao|paralisacao (total|geral))/;
-export function isStopNotice(text){
-  const plain=(text??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
-  if(resumed.test(plain))return false;
-  return wholeStop.test(plain)||(stopWords.test(plain)&&!partial.test(plain));
+const paradaTotal=/(travessia (esta |foi )?(interrompid|paralisad|suspens|fechad)|operacao (esta |foi )?(suspens|interrompid|paralisad)|sem operacao|paralisacao (total|geral))/;
+export function ehAvisoDeParada(texto){
+  const simples=(texto??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  if(retomada.test(simples))return false;
+  return paradaTotal.test(simples)||(palavrasDeParada.test(simples)&&!parcial.test(simples));
 }
-export function parseFeed(data){
-  if(!Array.isArray(data))throw new Error(typeof data==='string'?`Fonte recusou a consulta: ${data}`:'Formato inesperado da fonte.');
-  const result=[];
-  for(const raw of data){
-    const item=feedItem.safeParse(raw);
+// JSON do painel -> leituras das três travessias da Baixada Santista (as demais travessias do estado são ignoradas).
+export function lerPainel(dados){
+  if(!Array.isArray(dados))throw new Error(typeof dados==='string'?`Fonte recusou a consulta: ${dados}`:'Formato inesperado da fonte.');
+  const leituras=[];
+  for(const bruto of dados){
+    const item=itemPainel.safeParse(bruto);
     if(!item.success)continue;
-    const d=item.data,id=slug(`${d.TravessiaPontoA} ${d.TravessiaPontoB}`);
-    if(!crossingById(id))continue;
-    const text=notice(d.AvisoUsuarioApp||d.AvisoUsuario);
-    result.push({crossingId:id,waitA:d.EsperaPontoA,waitB:d.EsperaPontoB,boats:d.NumEmbarca,operating:d.EmbarcaAtivo&&d.NumEmbarca>0&&!isStopNotice(text),
-      weatherA:stripHtml(d.ClimaA)||null,weatherB:stripHtml(d.ClimaB)||null,period:stripHtml(d.DiaNoite)||null,
-      notice:text,sourceTime:parseSourceTime(d.DataConsulta)});
+    const d=item.data,id=gerarSlug(`${d.TravessiaPontoA} ${d.TravessiaPontoB}`);
+    if(!travessiaPorId(id))continue;
+    const aviso=limparAviso(d.AvisoUsuarioApp||d.AvisoUsuario);
+    leituras.push({crossingId:id,waitA:d.EsperaPontoA,waitB:d.EsperaPontoB,boats:d.NumEmbarca,operating:d.EmbarcaAtivo&&d.NumEmbarca>0&&!ehAvisoDeParada(aviso),
+      weatherA:removerHtml(d.ClimaA)||null,weatherB:removerHtml(d.ClimaB)||null,period:removerHtml(d.DiaNoite)||null,
+      notice:aviso,sourceTime:lerHorarioFonte(d.DataConsulta)});
   }
-  return result;
+  return leituras;
 }
 
-export async function fetchOfficial(fetchImpl=fetch,feedUrl=DEFAULT_FEED_URL){
-  return parseFeed(await download(fetchImpl,feedUrl,'json'));
+export async function buscarPainelOficial(buscarImpl=fetch,enderecoServico=ENDERECO_SERVICO_PADRAO){
+  return lerPainel(await baixar(buscarImpl,enderecoServico,'json'));
 }
-

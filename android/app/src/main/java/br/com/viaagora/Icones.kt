@@ -5,8 +5,8 @@ import android.graphics.drawable.Drawable
 import androidx.core.graphics.PathParser
 
 // Ícones de traço (grade 24 x 24), os mesmos desenhos do site.
-object Icons {
-    private val data = mapOf(
+object Icones {
+    private val dados = mapOf(
         "phone" to "M8.5,2h7a2.5,2.5 0,0 1,2.5,2.5v15a2.5,2.5 0,0 1,-2.5,2.5h-7a2.5,2.5 0,0 1,-2.5,-2.5v-15a2.5,2.5 0,0 1,2.5,-2.5z M10.5,5h3 M11,18.5h2",
         "server" to "M4.5,4h15a1.5,1.5 0,0 1,1.5,1.5v4a1.5,1.5 0,0 1,-1.5,1.5h-15a1.5,1.5 0,0 1,-1.5,-1.5v-4a1.5,1.5 0,0 1,1.5,-1.5z " +
             "M4.5,13h15a1.5,1.5 0,0 1,1.5,1.5v4a1.5,1.5 0,0 1,-1.5,1.5h-15a1.5,1.5 0,0 1,-1.5,-1.5v-4a1.5,1.5 0,0 1,1.5,-1.5z M7,7.5h0.01 M7,16.5h0.01 M11,7.5h6 M11,16.5h6",
@@ -28,24 +28,24 @@ object Icons {
         "repeat" to "M17,2.5l3,3 -3,3 M4,11.5v-1a5,5 0 0,1 5,-5h11 M7,21.5l-3,-3 3,-3 M20,12.5v1a5,5 0 0,1 -5,5H4",
     )
     private val cache = mutableMapOf<String, Path>()
-    fun path(name: String): Path = cache.getOrPut(name) { PathParser.createPathFromPathData(data.getValue(name)) }
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    fun caminho(nome: String): Path = cache.getOrPut(nome) { PathParser.createPathFromPathData(dados.getValue(nome)) }
+    private val pincel = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
 
     // Desenha o ícone com o centro em (cx, cy) e o lado "size", nas unidades atuais do canvas.
-    fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    fun draw(canvas: Canvas, nome: String, cx: Float, cy: Float, size: Float, color: Int) {
         val k = size / 24f
-        paint.color = color; paint.strokeWidth = 1.7f
+        pincel.color = color; pincel.strokeWidth = 1.7f
         canvas.save(); canvas.translate(cx - size / 2, cy - size / 2); canvas.scale(k, k)
-        canvas.drawPath(path(name), paint)
+        canvas.drawPath(caminho(nome), pincel)
         canvas.restore()
     }
 }
 
 // O mesmo ícone como Drawable, para usar ao lado de textos.
-class IconDrawable(private val name: String, private val color: Int) : Drawable() {
+class DesenhoIcone(private val nome: String, private val color: Int) : Drawable() {
     override fun draw(canvas: Canvas) {
         val b = bounds
-        Icons.draw(canvas, name, b.exactCenterX(), b.exactCenterY(), minOf(b.width(), b.height()).toFloat(), color)
+        Icones.draw(canvas, nome, b.exactCenterX(), b.exactCenterY(), minOf(b.width(), b.height()).toFloat(), color)
     }
     override fun setAlpha(alpha: Int) {}
     override fun setColorFilter(colorFilter: ColorFilter?) {}

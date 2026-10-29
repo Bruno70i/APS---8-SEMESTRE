@@ -1,20 +1,14 @@
-# Registro das atividades do grupo
+# Registro das atividades
 
-Preencha a ficha padrão do professor com as contribuições efetivas de cada integrante, suas datas e evidências. A tabela abaixo é um modelo de organização.
+Trabalho individual: Bruno Nascimento de P. Silva — RA G793030.
 
-| Integrante | RA | Atividade realizada | Data | Horas | Evidência |
-| --- | --- | --- | --- | --- | --- |
-| | | | | | |
-| | | | | | |
-| | | | | | |
+Etapas realizadas:
 
-Áreas para descrever conforme a participação real:
-
-- estudo do problema e da fonte de dados;
-- cliente Android e interface;
-- API, persistência e transações;
-- mensageria e comunicação entre réplicas;
-- testes, experimentos de falha e análise;
-- documentação e apresentação.
-
-A proposta, a bibliografia e a ficha devem seguir as orientações da disciplina e do coordenador.
+- estudo do problema e da fonte de dados (painel da SEMIL-SP);
+- coletor (scraper) e API do servidor;
+- persistência, outbox transacional e mensageria com RabbitMQ;
+- duas réplicas da API atrás do Nginx e canal ao vivo por WebSocket;
+- aplicativo Android: travessias, mapa, relatos e aba Bastidores;
+- testes automatizados e experimentos de falha;
+- publicação na VPS (sedda.com.br) e ambiente local com Docker;
+- relatório, documentação e apresentação.

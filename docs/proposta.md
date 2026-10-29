@@ -6,7 +6,7 @@
 
 ## Problema
 
-As balsas Santos ⇄ Guarujá, Santos ⇄ Vicente de Carvalho e Bertioga ⇄ Guarujá são transporte público estadual usado diariamente por moradores e turistas. Filas longas geram congestionamento nas avenidas de acesso, emissão de poluentes com motores ligados e perda de tempo. A espera muda ao longo do dia e com as condições ambientais (maré baixa, neblina, mar agitado), que chegam a impedir o transporte de veículos pesados.
+As balsas entre Santos e Guarujá, entre Santos e Vicente de Carvalho e entre Bertioga e Guarujá são transporte público estadual usado diariamente por moradores e turistas. Filas longas geram congestionamento nas avenidas de acesso, emissão de poluentes com motores ligados e perda de tempo. A espera muda ao longo do dia e com as condições ambientais (maré baixa, neblina, mar agitado), que chegam a impedir o transporte de veículos pesados.
 
 O painel oficial informa a espera atual, mas não guarda histórico, não avisa quando a fila diminui e não recebe a visão de quem está na fila.
 
@@ -20,8 +20,8 @@ O documento da APS cita, entre os exemplos de informações ambientais urbanas, 
 
 ## Solução
 
-- **Aplicativo Android nativo (Kotlin)** com as travessias, a espera em cada lado, mapa dos terminais, relatos e avisos.
-- **Servidor distribuído** com seis processos independentes: coletor de dados oficiais, duas réplicas da API, worker de eventos, broker de mensagens (RabbitMQ) e banco de dados (PostgreSQL).
+- **Aplicativo Android nativo (Kotlin)** com as travessias, a espera em cada lado, mapa dos terminais, relatos da comunidade e a aba Bastidores, que mostra o sistema distribuído funcionando.
+- **Servidor distribuído** com o Nginx na entrada e seis processos independentes: coletor de dados oficiais, duas réplicas da API, worker de eventos, broker de mensagens (RabbitMQ) e banco de dados (PostgreSQL).
 - **Coletor (scraper)**: varre o site das Travessias Litorâneas (SEMIL-SP), encontra o serviço do painel e transforma os dados em uma API própria, com histórico.
 - **Crowdsourcing**: relatos de espera, fila, embarque lento, travessia parada, clima e acidente, combinados com o dado oficial (mediana das esperas informadas).
 - **Tempo real**: alterações chegam a todos os celulares por WebSocket, passando pelo broker entre as réplicas.
@@ -38,10 +38,11 @@ O documento da APS cita, entre os exemplos de informações ambientais urbanas, 
 ## Funções extras (impacto na nota, item 3 das observações)
 
 - Relatório de **melhor horário para atravessar**, com o histórico por hora do dia.
-- **Avisos** quando a espera fica abaixo do limite escolhido.
-- Mapa com os terminais coloridos pela espera.
-- Modo demonstração sem servidor.
-- Testes automatizados: 24 no servidor e 15 no Android.
+- Mapa com as rotas reais das balsas e os terminais coloridos pela espera.
+- Detecção de **travessia parada**, pelo painel oficial e pelos relatos.
+- Aba **Bastidores**: diagrama dos processos com sinais de vida e o caminho de cada evento, com os tempos medidos.
+- Ambiente local completo com um comando (`docker compose up --build -d`).
+- Testes automatizados: 23 no servidor e 12 no Android.
 
 ## Interdisciplinaridade
 

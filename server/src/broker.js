@@ -1,80 +1,91 @@
+// Mensageria do sistema distribuído:
+//  - publicarLote (usado pelo worker): lê a outbox e publica os eventos no RabbitMQ, com confirmação;
+//  - ligarTempoReal (usado por cada réplica da API): recebe os eventos do RabbitMQ e avisa os celulares pelo WebSocket.
 import amqp from 'amqplib';
 import { WebSocketServer,WebSocket } from 'ws';
 
-const exchange='viaagora.changes';
-export const rabbitUrl=()=>process.env.RABBITMQ_URL || 'amqp://viaagora:viaagora_local_only@127.0.0.1:15679';
-const safelyClose=async resource=>{try{await resource?.close();}catch{}};
+const exchange='viaagora.changes'; // exchange do tipo fanout: entrega uma cópia de cada evento a todas as réplicas
+export const urlRabbit=()=>process.env.RABBITMQ_URL || 'amqp://viaagora:viaagora_local_only@127.0.0.1:15679';
+const fecharComCalma=async recurso=>{try{await recurso?.close();}catch{}};
 
-export function attachRealtime(app,url,{replica='api',pool=null}={}){
-  const wss=new WebSocketServer({noServer:true,maxPayload:1024});
-  let connection,channel,timer,stopping=false,connected=false;
-  const broadcast=event=>{for(const client of wss.clients){if(client.readyState===WebSocket.OPEN){if(client.bufferedAmount>1024*1024)client.terminate();else client.send(JSON.stringify(event));}}};
-  app.server.on('upgrade',(request,socket,head)=>{
-    if(request.url!=='/v1/events'){socket.destroy();return;}
-    wss.handleUpgrade(request,socket,head,client=>wss.emit('connection',client,request));
+export function ligarTempoReal(app,url,{replica='api',pool=null}={}){
+  const servidorWs=new WebSocketServer({noServer:true,maxPayload:1024});
+  let conexao,canal,temporizador,encerrando=false,conectado=false;
+  // Envia o evento a todos os celulares ligados nesta réplica (quem está com a fila de envio cheia é desconectado).
+  const avisarCelulares=evento=>{for(const celular of servidorWs.clients){if(celular.readyState===WebSocket.OPEN){if(celular.bufferedAmount>1024*1024)celular.terminate();else celular.send(JSON.stringify(evento));}}};
+  app.server.on('upgrade',(requisicao,socket,cabeca)=>{
+    if(requisicao.url!=='/v1/events'){socket.destroy();return;}
+    servidorWs.handleUpgrade(requisicao,socket,cabeca,celular=>servidorWs.emit('connection',celular,requisicao));
   });
-  wss.on('connection',client=>{
-    client.alive=true;
-    client.on('error',()=>{client.terminate();});
-    client.on('pong',()=>{client.alive=true;});
-    client.send(JSON.stringify({type:'ready',connected,replica}));
+  servidorWs.on('connection',celular=>{
+    celular.alive=true;
+    celular.on('error',()=>{celular.terminate();});
+    celular.on('pong',()=>{celular.alive=true;});
+    // Primeira mensagem: diz ao celular qual réplica o atende e se o broker está conectado.
+    celular.send(JSON.stringify({type:'ready',connected:conectado,replica}));
   });
-  const heartbeat=setInterval(()=>{for(const client of wss.clients){if(!client.alive)client.terminate();else{client.alive=false;client.ping();}}},15000);
-  heartbeat.unref();
-  function retry(){
-    if(connected&&!stopping)broadcast({type:'broker.status',connected:false});
-    connected=false;
-    if(!stopping&&!timer){timer=setTimeout(()=>{timer=null;void connect();},1500);timer.unref();}
+  // A cada 15 s confere se cada celular ainda responde (ping/pong); quem não respondeu é desligado.
+  const verificacao=setInterval(()=>{for(const celular of servidorWs.clients){if(!celular.alive)celular.terminate();else{celular.alive=false;celular.ping();}}},15000);
+  verificacao.unref();
+  function tentarDeNovo(){
+    if(conectado&&!encerrando)avisarCelulares({type:'broker.status',connected:false});
+    conectado=false;
+    if(!encerrando&&!temporizador){temporizador=setTimeout(()=>{temporizador=null;void conectar();},1500);temporizador.unref();}
   }
-  async function connect(){
+  async function conectar(){
     try{
-      connection=await amqp.connect(url,{timeout:3000});
-      connection.on('error',()=>{});connection.on('close',retry);
-      if(stopping){await safelyClose(connection);return;}
-      channel=await connection.createChannel();channel.on('error',()=>{});
-      await channel.assertExchange(exchange,'fanout',{durable:true});
-      const queue=await channel.assertQueue('',{exclusive:true,autoDelete:true});
-      await channel.bindQueue(queue.queue,exchange,'');
-      await channel.consume(queue.queue,message=>{
-        if(!message)return;
+      conexao=await amqp.connect(url,{timeout:3000});
+      conexao.on('error',()=>{});conexao.on('close',tentarDeNovo);
+      if(encerrando){await fecharComCalma(conexao);return;}
+      canal=await conexao.createChannel();canal.on('error',()=>{});
+      await canal.assertExchange(exchange,'fanout',{durable:true});
+      // Fila exclusiva desta réplica, ligada à exchange fanout: assim TODAS as réplicas recebem cada evento.
+      const fila=await canal.assertQueue('',{exclusive:true,autoDelete:true});
+      await canal.bindQueue(fila.queue,exchange,'');
+      await canal.consume(fila.queue,mensagem=>{
+        if(!mensagem)return;
         try{
-          const event=JSON.parse(message.content.toString());
-          // Cada réplica carimba quem entregou e quando, e registra a entrega para a tela Bastidores.
-          broadcast({...event,via:replica,deliveredAt:new Date().toISOString()});channel.ack(message);
-          if(pool&&event.eventId)pool.query('INSERT INTO event_deliveries(event_id,replica,clients) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
-            [event.eventId,replica,wss.clients.size]).catch(()=>{});
-        }catch{channel.nack(message,false,false);}
+          const evento=JSON.parse(mensagem.content.toString());
+          // Cada réplica carimba quem entregou e quando, e registra a entrega para a aba Bastidores.
+          avisarCelulares({...evento,via:replica,deliveredAt:new Date().toISOString()});canal.ack(mensagem);
+          if(pool&&evento.eventId)pool.query('INSERT INTO event_deliveries(event_id,replica,clients) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
+            [evento.eventId,replica,servidorWs.clients.size]).catch(()=>{});
+        }catch{canal.nack(mensagem,false,false);}
       });
-      connected=true;
-      broadcast({type:'resync',connected:true});
-    }catch{await safelyClose(connection);retry();}
+      conectado=true;
+      // Reconectou ao broker: pede aos celulares que busquem tudo de novo (algum evento pode ter passado).
+      avisarCelulares({type:'resync',connected:true});
+    }catch{await fecharComCalma(conexao);tentarDeNovo();}
   }
-  app.addHook('onReady',async()=>{await connect();});
+  app.addHook('onReady',async()=>{await conectar();});
   app.addHook('preClose',async()=>{
-    stopping=true;connected=false;clearTimeout(timer);clearInterval(heartbeat);
-    for(const client of wss.clients)client.terminate();wss.close();
-    await safelyClose(channel);await safelyClose(connection);
+    encerrando=true;conectado=false;clearTimeout(temporizador);clearInterval(verificacao);
+    for(const celular of servidorWs.clients)celular.terminate();servidorWs.close();
+    await fecharComCalma(canal);await fecharComCalma(conexao);
   });
-  return {get connected(){return connected;},get clients(){return wss.clients.size;}};
+  return {get conectado(){return conectado;},get celulares(){return servidorWs.clients.size;}};
 }
 
-export async function publishBatch(pool,url=rabbitUrl()){
-  const client=await pool.connect();let connection,channel;
+// Publica até 25 eventos pendentes da outbox. FOR UPDATE SKIP LOCKED garante que dois workers nunca peguem o mesmo
+// evento; o evento só é marcado como publicado depois que o RabbitMQ confirma. Se algo falhar, a transação é
+// desfeita e os eventos continuam pendentes para a próxima tentativa.
+export async function publicarLote(pool,url=urlRabbit()){
+  const conexaoBanco=await pool.connect();let conexao,canal;
   try{
-    await client.query('BEGIN');
-    const pending=await client.query('SELECT id,payload FROM outbox_events WHERE published_at IS NULL ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED');
-    if(!pending.rowCount){await client.query('COMMIT');return 0;}
-    connection=await amqp.connect(url,{timeout:2000});connection.on('error',()=>{});
-    channel=await connection.createConfirmChannel();channel.on('error',()=>{});
-    await channel.assertExchange(exchange,'fanout',{durable:true});
-    for(const row of pending.rows){
+    await conexaoBanco.query('BEGIN');
+    const pendentes=await conexaoBanco.query('SELECT id,payload FROM outbox_events WHERE published_at IS NULL ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED');
+    if(!pendentes.rowCount){await conexaoBanco.query('COMMIT');return 0;}
+    conexao=await amqp.connect(url,{timeout:2000});conexao.on('error',()=>{});
+    canal=await conexao.createConfirmChannel();canal.on('error',()=>{});
+    await canal.assertExchange(exchange,'fanout',{durable:true});
+    for(const linha of pendentes.rows){
       // O consumidor pode receber antes de a confirmação chegar ao worker. Medimos
       // a saída com o relógio do banco, mas só encerramos a pendência após confirmar.
-      const publishedAt=(await client.query('SELECT clock_timestamp() AS sent_at')).rows[0].sent_at;
-      await new Promise((resolve,reject)=>channel.publish(exchange,'',Buffer.from(JSON.stringify(row.payload)),{persistent:true,messageId:row.id,contentType:'application/json'},error=>error?reject(error):resolve()));
-      await client.query('UPDATE outbox_events SET published_at=$2,attempts=attempts+1 WHERE id=$1',[row.id,publishedAt]);
+      const publicadoEm=(await conexaoBanco.query('SELECT clock_timestamp() AS sent_at')).rows[0].sent_at;
+      await new Promise((resolver,rejeitar)=>canal.publish(exchange,'',Buffer.from(JSON.stringify(linha.payload)),{persistent:true,messageId:linha.id,contentType:'application/json'},erro=>erro?rejeitar(erro):resolver()));
+      await conexaoBanco.query('UPDATE outbox_events SET published_at=$2,attempts=attempts+1 WHERE id=$1',[linha.id,publicadoEm]);
     }
-    await client.query('COMMIT');return pending.rowCount;
-  }catch(error){await client.query('ROLLBACK');throw error;}
-  finally{await safelyClose(channel);await safelyClose(connection);client.release();}
+    await conexaoBanco.query('COMMIT');return pendentes.rowCount;
+  }catch(erro){await conexaoBanco.query('ROLLBACK');throw erro;}
+  finally{await fecharComCalma(canal);await fecharComCalma(conexao);conexaoBanco.release();}
 }
