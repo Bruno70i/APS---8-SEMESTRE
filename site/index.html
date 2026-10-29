@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8faf8">
+  <meta name="description" content="ViaAgora: travessias da Baixada Santista em um projeto acadêmico de Sistemas Distribuídos. Baixe o app e conheça a arquitetura.">
+  <title>ViaAgora · APS · UNIP</title>
+  <link rel="stylesheet" href="styles.css?v=20261029-centro">
+  <script src="app.js?v=20261029-centro" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10.5 5h3M11 18.5h2"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.2 4.7 4.7 0 0 0 7 18.5z"/></symbol>
+    <symbol id="i-servers" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="5.5" rx="1.5"/><rect x="3" y="9.25" width="18" height="5.5" rx="1.5"/><rect x="3" y="15.5" width="18" height="5.5" rx="1.5"/><path d="M6.5 5.75h.01M6.5 12h.01M6.5 18.25h.01M11 5.75h6M11 12h6M11 18.25h6"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></symbol>
+    <symbol id="i-balancer" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><path d="M7 12h3l4-5.5h4M10 12l4 5.5h4"/><path d="M16.5 4.5l2 2-2 2M16.5 15.5l2 2-2 2"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/><path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3.5 7.5l8.5 6 8.5-6"/><path d="M6 3h12"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v11.5M7.5 10l4.5 4.5 4.5-4.5M4 19.5h16"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-6 3-11 7.5"/></symbol>
+    <symbol id="i-container" viewBox="0 0 24 24"><path d="M12 2.8 20.5 7.5v9L12 21.2 3.5 16.5v-9z"/><path d="M3.8 7.6 12 12.2l8.2-4.6M12 12.2v8.8"/></symbol>
+  </svg>
+  <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+  <header class="masthead wrap">
+    <a class="identity" href="#inicio" aria-label="ViaAgora, início"><span class="brand-icon" aria-hidden="true">V</span>ViaAgora</a>
+    <span class="academic">APS <span aria-hidden="true">·</span> UNIP</span>
+  </header>
+  <main class="wrap" id="conteudo">
+    <section class="hero" aria-labelledby="titulo">
+      <p class="eyebrow">Baixada Santista / Sistemas Distribuídos</p>
+      <h1 id="titulo">Travessias em<br>tempo real<span>.</span></h1>
+      <p class="lead">Informações das balsas e relatos da comunidade, do servidor ao seu celular.</p>
+      <div class="actions">
+        <a class="button" href="https://sedda.com.br/downloads/ViaAgora.apk" download>Baixar APK <span aria-hidden="true">↓</span></a>
+        <a class="button secondary" href="https://github.com/Bruno70i/APS---8-SEMESTRE" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+    <nav class="tabs" role="tablist" aria-label="Conheça o projeto">
+      <button type="button" id="tab-sistema" role="tab" aria-controls="painel-sistema" aria-selected="false" data-tab="sistema">Sistema</button>
+      <button type="button" id="tab-local" role="tab" aria-controls="painel-local" aria-selected="false" tabindex="-1" data-tab="local">Rodar local</button>
+    </nav>
+    <section class="panel start" id="painel-inicio" aria-label="Início">
+      <div class="topology" aria-label="O celular se comunica pela internet com a VPS, onde rodam os servidores do sistema">
+        <div class="topo-node"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><span>Seu celular</span></div>
+        <div class="topo-link" aria-hidden="true"><span>HTTPS · WebSocket</span></div>
+        <div class="topo-node"><svg class="icon" aria-hidden="true"><use href="#i-cloud"/></svg><span>Internet</span></div>
+        <div class="topo-link" aria-hidden="true"><span>Nginx</span></div>
+        <div class="topo-node"><svg class="icon" aria-hidden="true"><use href="#i-servers"/></svg><span>VPS · 6 processos</span></div>
+      </div>
+      <button type="button" class="button start-flow" data-start-flow>Iniciar fluxo <span aria-hidden="true">→</span></button>
+    </section>
+    <section class="panel" id="painel-sistema" role="tabpanel" aria-labelledby="tab-sistema" tabindex="0" hidden>
+      <div class="section-heading"><div><p class="eyebrow">A arquitetura</p><h2>Um app. Serviços em cooperação.</h2></div><span class="diagram-label"><span aria-hidden="true"></span>Fluxo ilustrativo</span></div>
+      <p class="system-intro">Selecione um componente para entender seu papel. Os processos compartilham uma única VPS.</p>
+      <div class="architecture" aria-label="Fluxo de um relato: celular, Nginx, API, banco, worker, RabbitMQ, APIs e celular">
+        <div class="client">
+          <button type="button" class="phone component" data-node="app" aria-pressed="true"><span class="phone-speaker" aria-hidden="true"></span><span class="phone-symbol" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg></span><strong>ViaAgora</strong><span>Android</span></button>
+          <span class="client-caption">Seu celular</span>
+        </div>
+        <div class="internet" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-cloud"/></svg><span>HTTPS</span><span class="transfer">→</span><span>Internet</span></div>
+        <div class="vps">
+          <p class="vps-caption"><svg class="icon" aria-hidden="true"><use href="#i-servers"/></svg> VPS <span>Uma máquina · processos independentes</span></p>
+          <div class="service-grid">
+            <button type="button" class="component service nginx" data-node="nginx" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-balancer"/></svg><strong>Nginx</strong><span>Acesso HTTPS</span></button>
+            <div class="api-pair"><button type="button" class="component service" data-node="api1" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-server"/></svg><strong>API 1</strong></button><button type="button" class="component service" data-node="api2" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-server"/></svg><strong>API 2</strong></button></div>
+            <button type="button" class="component service database" data-node="db" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-database"/></svg><strong>PostgreSQL</strong><span>Dados + outbox</span></button>
+            <button type="button" class="component service return-api" data-node="events" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg><strong>APIs</strong><span>Avisam o app</span></button>
+            <button type="button" class="component service broker" data-node="broker" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-queue"/></svg><strong>RabbitMQ</strong><span>Distribui eventos</span></button>
+            <button type="button" class="component service worker" data-node="worker" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg><strong>Worker</strong><span>Publica a outbox</span></button>
+          </div>
+          <div class="source-line"><span class="source-site"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>Fonte externa: SEMIL-SP</span><span aria-hidden="true">→</span><button type="button" class="collector component" data-node="collector" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Coletor</button><span aria-hidden="true">→</span><span>PostgreSQL</span></div>
+        </div>
+        <div class="return-path" aria-hidden="true"><span>←</span><span class="return-label"><svg class="icon" aria-hidden="true"><use href="#i-bolt"/></svg>WebSocket · via Nginx</span></div>
+      </div>
+      <p class="component-caption" id="component-description" aria-live="polite"><strong>ViaAgora.</strong> Consulta as travessias, envia relatos e busca o estado atualizado após cada aviso.</p>
+    </section>
+    <section class="panel" id="painel-local" role="tabpanel" aria-labelledby="tab-local" tabindex="0" hidden>
+      <div class="section-heading"><div><p class="eyebrow">No seu computador</p><h2>Um laboratório em três passos.</h2></div><a class="inline-link" href="https://github.com/Bruno70i/APS---8-SEMESTRE/blob/main/docs/execucao-local.md" target="_blank" rel="noopener noreferrer">Guia completo ↗</a></div>
+      <p class="system-intro">Você precisa de Git, Docker Desktop (ou Docker com Compose) e um celular Android ou emulador.</p>
+      <ol class="local-steps">
+        <li><span class="step-number">1</span><div><h3><svg class="icon" aria-hidden="true"><use href="#i-branch"/></svg>Clone o repositório</h3><p>Baixe o código e entre na pasta do projeto.</p></div></li>
+        <li><span class="step-number">2</span><div><h3><svg class="icon" aria-hidden="true"><use href="#i-container"/></svg>Inicie os serviços</h3><p>Execute <code>docker compose up --build -d</code>. Na primeira vez leva alguns minutos. Depois, abra <code>http://localhost:8080</code>: este site passa a rodar no seu computador.</p></div></li>
+        <li><span class="step-number">3</span><div><h3><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg>Conecte o aplicativo</h3><p>No app, toque em Ajustes → Outro servidor e use <code>http://IP_DO_COMPUTADOR:8080</code>, com o celular na mesma rede Wi-Fi. No emulador: <code>http://10.0.2.2:8080</code>.</p></div></li>
+      </ol>
+      <details class="commands"><summary>Comandos do terminal</summary><pre><code>git clone https://github.com/Bruno70i/APS---8-SEMESTRE.git
+cd APS---8-SEMESTRE
+docker compose up --build -d
+docker compose ps</code></pre><p>Para encerrar: <code>docker compose stop</code>. O Nginx na porta 8080 reparte os celulares entre as duas APIs, como na VPS.</p></details>
+      <p class="local-note">O APK usa a VPS por padrão. Ao terminar, volte ao Servidor oficial nos Ajustes.</p>
+    </section>
+  </main>
+  <footer class="wrap"><span>ViaAgora <span aria-hidden="true">/</span> Projeto acadêmico de Sistemas Distribuídos</span><span>Fonte: <a href="https://semil.sp.gov.br/travessias/" target="_blank" rel="noopener noreferrer">SEMIL-SP ↗</a> <span aria-hidden="true">·</span> Projeto independente</span></footer>
+</body>
+</html>

@@ -1,0 +1,79 @@
+# Ambiente local: o mesmo sistema da VPS, rodando no seu computador.
+# Suba tudo com "docker compose up --build -d" e acesse http://localhost:8080.
+name: viaagora
+x-backend: &backend
+  DATABASE_URL: postgresql://viaagora:${DATABASE_PASSWORD:-viaagora_local_only}@database:5432/viaagora
+  RABBITMQ_URL: amqp://viaagora:${BROKER_PASSWORD:-viaagora_local_only}@broker:5672
+  PORT: 4310
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: viaagora
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-viaagora_local_only}
+      POSTGRES_DB: viaagora
+    ports: ["127.0.0.1:15439:5432"]
+    volumes: ["viaagora_database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U viaagora -d viaagora"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+  broker:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: viaagora
+      RABBITMQ_DEFAULT_PASS: ${BROKER_PASSWORD:-viaagora_local_only}
+    ports: ["127.0.0.1:15679:5672", "127.0.0.1:15689:15672"]
+    volumes: ["viaagora_broker:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  api:
+    build: ./server
+    environment: {<<: *backend, NODE_NAME: api-1}
+    depends_on:
+      database: {condition: service_healthy}
+      broker: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  api-2:
+    build: ./server
+    environment: {<<: *backend, NODE_NAME: api-2}
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  worker:
+    build: ./server
+    command: ["node", "src/worker.js"]
+    environment: {<<: *backend, NODE_NAME: worker}
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  collector:
+    build: ./server
+    command: ["node", "src/collector.js"]
+    environment: {<<: *backend, NODE_NAME: collector}
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  # Porta de entrada única: mostra o site e reparte o app entre as duas APIs.
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["8080:80"]
+    volumes: ["./nginx.conf:/etc/nginx/conf.d/default.conf:ro", "./site:/usr/share/nginx/html:ro"]
+    depends_on:
+      api: {condition: service_healthy}
+      api-2: {condition: service_started}
+    restart: unless-stopped
+volumes:
+  viaagora_database:
+  viaagora_broker:

@@ -1,2 +1,16 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Scripts: o gradlew roda no Linux/macOS (LF); .bat e .ps1 no Windows (CRLF)
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Arquivos binários: o Git não deve tentar comparar nem converter
+*.apk binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary

@@ -1,0 +1,33 @@
+name: viaagora-tests
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: viaagora
+      POSTGRES_PASSWORD: viaagora_test_only
+      POSTGRES_DB: viaagora_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U viaagora -d viaagora_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  broker:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: viaagora
+      RABBITMQ_DEFAULT_PASS: viaagora_test_only
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  tests:
+    build: ./server
+    command: ["npm", "test"]
+    environment:
+      TEST_DATABASE_URL: postgresql://viaagora:viaagora_test_only@database:5432/viaagora_test
+      RABBITMQ_URL: amqp://viaagora:viaagora_test_only@broker:5672
+    volumes: ["./server/test:/app/test:ro"]
+    depends_on:
+      database: {condition: service_healthy}
+      broker: {condition: service_healthy}

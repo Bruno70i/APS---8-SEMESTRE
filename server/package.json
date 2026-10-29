@@ -1,0 +1,6 @@
+{
+  "name": "viaagora-server", "version": "1.0.0", "private": true, "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test --test-concurrency=1 test/*.test.js", "start": "node src/index.js", "worker": "node src/worker.js", "collector": "node src/collector.js", "migrate": "node src/migrate.js" },
+  "dependencies": { "fastify": "^5.6.0", "@fastify/rate-limit": "^10.3.0", "amqplib": "^0.10.9", "pg": "^8.16.3", "ws": "^8.18.3", "zod": "^4.1.12" }
+}
