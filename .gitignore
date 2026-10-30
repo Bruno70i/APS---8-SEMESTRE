@@ -18,4 +18,4 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
-docs
+.docs

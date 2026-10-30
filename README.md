@@ -70,6 +70,7 @@ Aplicativo: requer JDK 17 e SDK Android 35. No Windows, `.\scripts\build-apk.ps1
 - `site/`: site do projeto (HTML, CSS e JavaScript).
 - `compose.yaml` e `nginx.conf`: ambiente local.
 - `compose.test.yaml`: ambiente dos testes automatizados.
+- `docs/`: Trabalho escrito da APS.
 
 ## Atribuições
 
