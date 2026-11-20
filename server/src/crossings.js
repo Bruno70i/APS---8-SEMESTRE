@@ -1,4 +1,5 @@
-// Travessias acompanhadas e leitura do painel oficial da SEMIL-SP (web scraping).
+// Travessias acompanhadas e leitura da fonte oficial (web scraping do site da Acquavias, que opera as
+// Travessias Litorâneas; o antigo serviço JSON do painel da SEMIL-SP fica como reserva).
 import { z } from 'zod';
 
 // Travessias da Baixada Santista acompanhadas pelo ViaAgora. Terminais e rotas tirados das linhas de balsa do
@@ -22,8 +23,10 @@ export const travessias=[
 export const idsTravessias=travessias.map(t=>t.id);
 export const travessiaPorId=id=>travessias.find(t=>t.id===id);
 
-export const ENDERECO_SITE='https://semil.sp.gov.br/travessias/';
-// Endereço conhecido do serviço do painel, usado se a varredura do site falhar.
+// Site oficial das Travessias Litorâneas. Cada travessia tem uma página própria (ex.: /santos-guaruja/).
+export const ENDERECO_SITE='https://acquavias.com.br/';
+export const enderecoPagina=id=>new URL(`${id}/`,ENDERECO_SITE).toString();
+// Serviço JSON do antigo painel da SEMIL-SP, usado como reserva se o site da Acquavias falhar.
 export const ENDERECO_SERVICO_PADRAO='https://drivetis-travessias.brazilsouth.cloudapp.azure.com:1444/TravessiaService/PT';
 const cabecalhos={'User-Agent':'Mozilla/5.0 (compatible; ViaAgora-APS/1.0; projeto academico)','Accept':'text/html,application/xhtml+xml,application/json','Accept-Language':'pt-BR,pt;q=0.9'};
 
@@ -33,35 +36,63 @@ export const gerarSlug=valor=>valor.normalize('NFD').replace(/[̀-ͯ]/g,'').toLo
 const avisoGenerico=/^(o\s+)?0800[-\d\s]*.{0,40}24 horas/i;
 const removerHtml=valor=>(valor??'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
 
-// Página da SEMIL -> <script ...travessia-service...> -> variável getInfo (ignora linhas comentadas).
-export function encontrarScriptDoPainel(html,base=ENDERECO_SITE){
-  const endereco=html.match(/<script[^>]+src="([^"]*travessia-service[^"]*)"/i)?.[1];
-  return endereco?new URL(endereco,base).toString():null;
-}
-export function encontrarEnderecoServico(script){
-  for(const linha of script.split(/\r?\n/)){
-    if(linha.trim().startsWith('//'))continue;
-    const endereco=linha.match(/getInfo\s*=\s*["'](https?:\/\/[^"']+)["']/)?.[1];
-    if(endereco)return endereco.endsWith('/')?endereco:endereco+'/';
-  }
-  return null;
-}
-
 // Baixa uma página ou um JSON, desistindo depois de 15 segundos.
 async function baixar(buscarImpl,endereco,tipo){
   const resposta=await buscarImpl(endereco,{headers:cabecalhos,signal:AbortSignal.timeout(15000)});
   if(!resposta.ok)throw new Error(`Fonte respondeu ${resposta.status} em ${new URL(endereco).host}`);
   return tipo==='json'?resposta.json():resposta.text();
 }
-// Refaz o caminho do navegador: página -> script do painel -> endereço do serviço de dados.
-export async function descobrirEnderecoServico(buscarImpl=fetch){
-  const html=await baixar(buscarImpl,ENDERECO_SITE,'text');
-  const script=encontrarScriptDoPainel(html);
-  if(!script)throw new Error('Script do painel não encontrado na página.');
-  const base=encontrarEnderecoServico(await baixar(buscarImpl,script,'text'));
-  if(!base)throw new Error('Endereço do serviço não encontrado no script.');
-  return base+'PT';
+
+// ---- Site da Acquavias ----
+// "30 min" -> 30; "1h 10min" -> 70; "1 h" -> 60. Texto sem número (ex.: "-") -> null.
+export function lerMinutos(texto){
+  const simples=removerHtml(texto).toLowerCase();
+  const horas=simples.match(/(\d+)\s*h/)?.[1],minutos=simples.match(/(\d+)\s*min/)?.[1]??(horas?null:simples.match(/^(\d+)$/)?.[1]);
+  if(horas==null&&minutos==null)return null;
+  return Number(horas??0)*60+Number(minutos??0);
 }
+// Texto alternativo do ícone do clima: "Parcialmente Nublado — Dia" -> clima "Parcialmente Nublado", período "Dia".
+function lerClima(alt){
+  const [clima,periodo]=removerHtml(alt).split(/\s+[—–-]\s+/);
+  return {clima:clima||null,periodo:periodo||null};
+}
+const textosDaClasse=(html,classe)=>[...html.matchAll(new RegExp(`class="${classe}"[^>]*>([\\s\\S]*?)</(?:span|div)>`,'g'))].map(m=>removerHtml(m[1]));
+const altsDaClasse=(html,classe)=>[...html.matchAll(new RegExp(`class="${classe}"[^>]*>\\s*<img[^>]*?alt="([^"]*)"`,'g'))].map(m=>m[1]);
+
+// Página de uma travessia na Acquavias -> leitura no mesmo formato do painel antigo.
+// A barra do topo (aqv-topbar) traz esperas, embarcações e clima de todas as travessias; o corpo da página
+// traz a espera e o clima de cada lado e o aviso ao usuário.
+export function lerPaginaAcquavias(html,id){
+  const item=[...html.matchAll(/<a\s[^>]*class="aqv-topbar__item"[\s\S]*?<\/a>/g)].map(m=>m[0])
+    .find(bloco=>bloco.match(/href="([^"]*)"/)?.[1]?.replace(/^https?:\/\/[^/]+/,'')===`/${id}/`);
+  const esperasCorpo=textosDaClasse(html,'aqv-tempo-dinamico__valor').map(lerMinutos);
+  const esperasTopo=item?[...item.matchAll(/<span>([^<]*)<\/span>/g)].map(m=>lerMinutos(m[1])).filter(v=>v!=null):[];
+  const [waitA,waitB]=esperasCorpo.length>=2&&esperasCorpo.every(v=>v!=null)?esperasCorpo:esperasTopo;
+  const boats=item?Number.parseInt(item.match(/aqv-topbar__quantidade">\s*(\d+)/)?.[1],10):null;
+  const climas=altsDaClasse(html,'aqv-clima-destaque').map(lerClima);
+  const climaTopo=lerClima(item?.match(/aqv-topbar__icone-clima"[^>]*?alt="([^"]*)"/)?.[1]??'');
+  const aviso=limparAviso(textosDaClasse(html,'aqv-aviso-usuario').find(Boolean));
+  const leitura={crossingId:id,waitA,waitB,boats,
+    operating:boats>0&&!ehAvisoDeParada(aviso),
+    weatherA:(climas[0]??climaTopo).clima,weatherB:(climas[1]??climaTopo).clima,period:(climas[0]??climaTopo).periodo,
+    notice:aviso,sourceTime:null};
+  return leituraAcquavias.safeParse(leitura).success?leitura:null;
+}
+const leituraAcquavias=z.object({waitA:z.number().int().min(0).max(1440),waitB:z.number().int().min(0).max(1440),boats:z.number().int().min(0).max(50)}).passthrough();
+
+// Lê as páginas das três travessias ao mesmo tempo. Se só uma falhar, as outras continuam valendo.
+export async function buscarAcquavias(buscarImpl=fetch){
+  const resultados=await Promise.allSettled(idsTravessias.map(async id=>{
+    const leitura=lerPaginaAcquavias(await baixar(buscarImpl,enderecoPagina(id),'text'),id);
+    if(!leitura)throw new Error(`Página de ${id} sem os tempos de espera.`);
+    return leitura;
+  }));
+  const leituras=resultados.filter(r=>r.status==='fulfilled').map(r=>r.value);
+  if(!leituras.length)throw new Error(resultados[0].reason?.message??'Site da Acquavias sem dados.');
+  return leituras;
+}
+
+// ---- Reserva: serviço JSON do antigo painel da SEMIL-SP ----
 
 // Formato de cada item do JSON do painel oficial (validado com Zod; itens fora do formato são ignorados).
 const itemPainel=z.object({

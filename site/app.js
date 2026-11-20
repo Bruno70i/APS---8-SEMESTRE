@@ -54,7 +54,7 @@ const descricoes = {
   worker: ['Worker.', 'Publica os eventos pendentes da outbox e aguarda a confirmação do RabbitMQ.'],
   broker: ['RabbitMQ.', 'Entrega uma cópia de cada evento para cada réplica da API por uma exchange fanout.'],
   avisos: ['APIs → celular.', 'Cada réplica avisa seus clientes por WebSocket, e o app consulta os dados novamente.'],
-  coletor: ['Coletor.', 'Consulta o painel SEMIL-SP periodicamente e grava as leituras e suas alterações no PostgreSQL.']
+  coletor: ['Coletor.', 'Consulta o site oficial das travessias (Acquavias) a cada minuto e grava as leituras e suas alterações no PostgreSQL.']
 };
 const componentes = [...document.querySelectorAll('[data-componente]')];
 const legenda = document.getElementById('descricao-componente');

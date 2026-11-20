@@ -1,0 +1,50 @@
+TÍTULO (sugestão)
+ViaAgora: app das balsas ao vivo | Sistema distribuído na prática (APS UNIP)
+
+DESCRIÇÃO
+Como funciona um sistema distribuído de verdade? Neste vídeo eu explico os conceitos de sistemas distribuídos e mostro, na prática, o ViaAgora: um aplicativo Android que mostra em tempo real o tempo de espera das balsas da Baixada Santista (Santos e Guarujá, Santos e Vicente de Carvalho, Bertioga e Guarujá).
+
+O projeto foi desenvolvido para a APS de Desenvolvimento de Sistemas Distribuídos (DSD) do curso de Ciência da Computação da UNIP. O tema é uma aplicação de sistema distribuído para dispositivo móvel ligada a informações ambientais urbanas; a área escolhida foi trânsito e transporte público.
+
+O que você vai ver:
+• O que é um sistema distribuído e suas características
+• Arquitetura com 7 serviços em Docker: Nginx, duas réplicas da API, PostgreSQL, RabbitMQ, worker e coletor
+• Replicação e balanceamento de carga
+• Mensageria publish/subscribe com RabbitMQ
+• Consistência com o padrão outbox
+• Simulação de falha ao vivo: o RabbitMQ cai e nenhum relato se perde
+
+Links:
+🌐 Site do projeto: https://sedda.com.br
+📱 Baixar o app (Android): https://sedda.com.br/downloads/ViaAgora.apk
+💻 Código-fonte: https://github.com/Bruno70i/APS---8-SEMESTRE
+
+Capítulos:
+0:00 Abertura
+0:30 O que é um sistema distribuído
+1:30 Características
+2:30 Transparência
+3:10 Comunicação entre os processos
+3:50 O problema
+4:30 O ViaAgora
+5:20 A arquitetura
+6:10 Replicação e balanceamento
+6:50 Mensageria
+7:30 Consistência
+8:10 Quando algo falha
+8:50 Bastidores
+9:30 Demonstração
+11:00 Conclusão
+11:40 Encerramento
+
+Tecnologias: Kotlin (Android Studio), Node.js, Fastify, PostgreSQL, RabbitMQ, Nginx, Docker, WebSocket, MapLibre e OpenStreetMap.
+
+Autor: Bruno Nascimento de P. Silva (RA G793030)
+UNIP, Ciência da Computação, 8º semestre
+
+Dados das travessias: painel público das Travessias Litorâneas (SEMIL-SP). Mapa © OpenStreetMap. Os relatos são colaborativos e não representam confirmação oficial.
+
+#SistemasDistribuidos #Android #Docker #RabbitMQ #UNIP
+
+TAGS (campo "Tags" do YouTube)
+sistemas distribuídos, sistema distribuído, APS UNIP, ciência da computação, Android, Kotlin, Node.js, Docker, RabbitMQ, PostgreSQL, Nginx, WebSocket, balsa Santos Guarujá, Baixada Santista, ViaAgora
